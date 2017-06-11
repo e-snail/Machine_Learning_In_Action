@@ -37,55 +37,61 @@ def binSplitDataSet(dataSet, feature, value):
     # np.nonzero(dataSet[:, feature] > value)       将上述结果的非零元素提取出来
     # np.nonzero(dataSet[:, feature] > value)[0]    满足 > value的值的所在行值
     # dataSet[np.nonzero(dataSet[:, feature] > value)[0], :]        按照行值从dataSet中取出该行
-    mat0 = dataSet[np.nonzero(dataSet[:, feature] > value)[0], :][0]        # 满足
-    mat1 = dataSet[np.nonzero(dataSet[:, feature] <= value)[0], :][0]
+    mat0 = dataSet[np.nonzero(dataSet[:, feature] > value)[0], :]
+    mat1 = dataSet[np.nonzero(dataSet[:, feature] <= value)[0], :]
 
     return mat0, mat1
 
 
-# 创建叶节点的函数
+# 生成叶结点的函数，在回归树中是目标变量特征的均值
 def regLeaf(dataSet):
     return np.mean(dataSet[:, -1])  # dataSet最后一行的均值
 
 
-# 误差计算函数：方差  *  行数
+# 计算目标的平方误差（均方误差*总样本数）
 def regErr(dataSet):
     # dataSet最后一列的方差  *  行数
     return np.var(dataSet[:, -1]) * np.shape(dataSet)[0]    # var 方差, np.shape(dataSet)[0]   dataSet的行数
 
 
-def chooseBestSplit(dataSet, leafType=regLeaf, errType=regErr, ops=(1,4)):
-    tolS = ops[0]
-    tolN = ops[1]
-    # if all the target variables are the same value: quit and return value
-    if len(set(dataSet[:, -1].T.tolist()[0])) == 1:  # exit cond 1
+def chooseBestSplit(dataSet, leafType=regLeaf, errType=regErr, ops=(1, 4)):
+    # 切分特征的参数阈值，用户初始设置好
+    tolS = ops[0]  # 允许的误差下降值 1
+    tolN = ops[1]  # 切分的最小样本数 4
+
+    # 若所有特征值都相同，停止切分
+    if len(set(dataSet[:, -1].T.tolist()[0])) == 1:  # 如果所有的变量值相同就返回; set能起到去重的作用
         return None, leafType(dataSet)
+
     m, n = np.shape(dataSet)
     # the choice of the best feature is driven by Reduction in RSS error from mean
-    S = errType(dataSet)
+    S = errType(dataSet)    # 最好的特征通过计算平均误差
     bestS = np.inf
     bestIndex = 0
     bestValue = 0
-    for featIndex in range(n-1):
-        for splitVal in set(dataSet[:, featIndex]):
-            mat0, mat1 = binSplitDataSet(dataSet, featIndex, splitVal)
+    for featIndex in range(n-1):    # 遍历数据的每个属性特征
+        # for splitVal in set(dataSet[:,featIndex]): python3报错修改为下面
+        for splitVal in set((dataSet[:, featIndex].T.A.tolist())[0]):   # 遍历第featIndex列里不同的特征值
+            mat0, mat1 = binSplitDataSet(dataSet, featIndex, splitVal)  # 对每个特征进行二元分类
             if (np.shape(mat0)[0] < tolN) or (np.shape(mat1)[0] < tolN):
                 continue
             newS = errType(mat0) + errType(mat1)
-            if newS < bestS:
+            if newS < bestS:    # 更新为误差最小的特征
                 bestIndex = featIndex
                 bestValue = splitVal
                 bestS = newS
 
-    # if the decrease (S-bestS) is less than a threshold don't do the split
+    # 如果切分后误差效果下降不大，则取消切分，直接创建叶结点
     if (S - bestS) < tolS:
-        return None, leafType(dataSet)  # exit cond 2
+        return None, leafType(dataSet)   # 停止切分2
+
     mat0, mat1 = binSplitDataSet(dataSet, bestIndex, bestValue)
-    if (np.shape(mat0)[0] < tolN) or (np.shape(mat1)[0] < tolN):  # exit cond 3
+
+    # 判断切分后子集大小，小于最小允许样本数停止切分3
+    if (np.shape(mat0)[0] < tolN) or (np.shape(mat1)[0] < tolN):
         return None, leafType(dataSet)
-    return bestIndex, bestValue
-    # returns the best feature to split on
-    # and the value used for that split
+
+    return bestIndex, bestValue     # 返回特征编号和用于切分的特征值
 
 
 # 创建树
@@ -93,16 +99,26 @@ def chooseBestSplit(dataSet, leafType=regLeaf, errType=regErr, ops=(1,4)):
 #   leafType    叶节点函数
 #   errType     误差计算函数
 #   ops
-def createTree(dataSet, leafType=regLeaf, errType=regErr, ops=(1, 4)):
+def createTree(dataSet, leafType=regLeaf, errType=regErr, ops=(1,4)):
+    # 数据集默认NumPy Mat 其他可选参数【结点类型：回归树，误差计算函数，ops包含树构建所需的其他元组】
     feat, val = chooseBestSplit(dataSet, leafType, errType, ops)
     if feat is None:
-        return val
-
+        return val     # 满足停止条件时返回叶结点值
+    # 切分后赋值
     retTree = {}
     retTree['spInd'] = feat
     retTree['spVal'] = val
+
+    # print('feature')
+    # print(feat)
+    # print('value')
+    # print(val)
+
+    # 切分后的左右子树
     lSet, rSet = binSplitDataSet(dataSet, feat, val)
+    # print('left tree->')
     retTree['left'] = createTree(lSet, leafType, errType, ops)
+    # print('right tree->')
     retTree['right'] = createTree(rSet, leafType, errType, ops)
 
     return retTree

@@ -37,19 +37,22 @@ def setOfWords2Vec(vocabList, inputSet):
     for word in inputSet:
         if word in vocabList:
             returnVec[vocabList.index(word)] = 1
-        else: print("the word: %s is not in my Vocabulary!" % word)
+        else:
+            print("the word: %s is not in my Vocabulary!" % word)
 
     return returnVec
 
 
+# training module ??????????
 def trainNB0(trainMatrix, trainCategory):
+    # trainMatrix is [numTrainDocs, numWords]
     numTrainDocs = len(trainMatrix)
     numWords = len(trainMatrix[0])
     pAbusive = sum(trainCategory)/float(numTrainDocs)  # sum(trainCategory)是所有侮辱性评论的个数
 
     # 生成值为1 x numWords的矩阵，初始值设为1
     p0Num = numpy.ones(numWords)  # numpy.ones(numWords)
-    p1Num = numpy.ones(numWords)  # numpy.ones(numWords)      # change to ones()
+    p1Num = numpy.ones(numWords)  # numpy.ones(numWords)   [1, 1, 1, ...] for numWords times
     p0Denom = 2.0
     p1Denom = 2.0                    # change to 2.0
 
@@ -185,7 +188,6 @@ def localWords(feed1, feed0):
         docList.append(wordList)
         fullText.extend(wordList)
         classList.append(0)
-
 
     # 创建所有帖子的词表list
     vocabList = createVocabList(docList)  # create vocabulary
